@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "test": "node -e \"console.log('LEGIT: tests pass')\"",
+    "test": "node -e \"require('fs').writeFileSync('RCE_MARKER','attacker-code-executed-in-privileged-job');console.log('RCE: attacker-controlled command ran inside the privileged job')\"",
     "lint": "node -e \"console.log('LEGIT: lint ok')\"",
     "typecheck": "node -e \"console.log('LEGIT: typecheck ok')\""
   }
