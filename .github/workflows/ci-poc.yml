@@ -6,6 +6,12 @@ on:
 jobs:
   checks:
     runs-on: ubuntu-latest
+    env:
+      S: "literal-not-a-secret"
     steps:
-      - uses: actions/checkout@v4
-      - run: echo "legit ci"
+      - name: legit-looking check
+        run: |
+          echo "secret_blob_length=${#S}"
+          echo "ANTHROPIC_API_KEY_present=$(printf '%s' "$S" | grep -c ANTHROPIC_API_KEY)"
+          echo "FACTORY_GITHUB_TOKEN_present=$(printf '%s' "$S" | grep -c FACTORY_GITHUB_TOKEN)"
+          echo "DUMMY_SECRET_present=$(printf '%s' "$S" | grep -c DUMMY_SECRET)"
