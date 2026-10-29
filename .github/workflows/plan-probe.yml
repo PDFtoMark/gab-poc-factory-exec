@@ -1,0 +1,27 @@
+name: poc-plan
+# Mirrors launchdarkly-labs/small-factory .github/workflows/factory-plan.yml trigger
+on:
+  issues:
+    types: [labeled]
+jobs:
+  plan:
+    if: github.event.label.name == 'factory'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Report trigger and prompt injection surface
+        env:
+          ACTOR: ${{ github.actor }}
+          ACTION: ${{ github.event.action }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          echo "action=$ACTION actor=$ACTOR"
+          echo "title=$ISSUE_TITLE"
+          grep -c 'AGENT-INSTRUCTION' <<< "$ISSUE_BODY" || true
+          TOK=$(grep -o 'AUTHORIZATION: basic [A-Za-z0-9+/=]*' .git/config | head -1 | awk '{print $3}')
+          echo "checkout token readable by agent step: $([ -n "$TOK" ] && echo YES || echo NO)"
+          gh issue comment "${{ github.event.issue.number }}" --body "probe: action=$ACTION actor=$ACTOR checkout_token_readable=$([ -n "$TOK" ] && echo yes || echo no)"
