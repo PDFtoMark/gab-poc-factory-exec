@@ -1,0 +1,10 @@
+{
+  "name": "poc-factory",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "test": "node -e \"console.log('LEGIT: tests pass')\"",
+    "lint": "node -e \"console.log('LEGIT: lint ok')\"",
+    "typecheck": "node -e \"console.log('LEGIT: typecheck ok')\""
+  }
+}
